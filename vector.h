@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <new>
+#include <memory>
 #include <utility>
 
 template <typename T>
@@ -19,7 +20,6 @@ public:
     }
 
     T* operator+(size_t offset) noexcept {
-        // Разрешается получать адрес ячейки памяти, следующей за последним элементом массива
         assert(offset <= capacity_);
         return buffer_ + offset;
     }
@@ -55,12 +55,10 @@ public:
     }
 
 private:
-    // Выделяет сырую память под n элементов и возвращает указатель на неё
     static T* Allocate(size_t n) {
         return n != 0 ? static_cast<T*>(operator new(n * sizeof(T))) : nullptr;
     }
 
-    // Освобождает сырую память, выделенную ранее по адресу buf при помощи Allocate
     static void Deallocate(T* buf) noexcept {
         operator delete(buf);
     }
@@ -78,35 +76,18 @@ public:
         : data_(size)
         , size_(size) 
     {
-        size_t i = 0;
-        try {
-            for (; i != size; ++i) {
-                new (data_ + i) T();
-            }
-        } catch (...) {
-            DestroyN(data_.GetAddress(), i);
-            throw;
-        }
+        std::uninitialized_value_construct_n(data_.GetAddress(), size);
     }
 
     Vector(const Vector& other)
         : data_(other.size_)
         , size_(other.size_) 
     {
-        size_t i = 0;
-        try {
-            for (; i != other.size_; ++i) {
-                CopyConstruct(data_ + i, other.data_[i]);
-            }
-        } catch (...){
-            DestroyN(data_.GetAddress(), i);
-            throw;
-        }
-
+        std::uninitialized_copy_n(other.data_.GetAddress(), size_, data_.GetAddress());
     }
 
     ~Vector() {
-        DestroyN(data_.GetAddress(), size_);
+        std::destroy_n(data_.GetAddress(), size_);
     }
 
     size_t Size() const noexcept {
@@ -131,47 +112,16 @@ public:
             return;
         }
         RawMemory<T> new_data(new_capacity);
-        size_t i = 0;
-        try {
-            for (; i != size_; ++i) {
-                CopyConstruct(new_data + i, data_[i]);
-            }  
-        } catch (...){
-            DestroyN(new_data.GetAddress(), i);
-            throw;
+        if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>){
+            std::uninitialized_move_n(data_.GetAddress(), size_, new_data.GetAddress());
+        } else {
+            std::uninitialized_copy_n(data_.GetAddress(), size_, new_data.GetAddress());
         }
-        DestroyN(data_.GetAddress(), size_);
+        std::destroy_n(data_.GetAddress(), size_);
         data_.Swap(new_data);
     }
 
 private:
     RawMemory<T> data_;
     size_t size_ = 0;
-
-    // Выделяет сырую память под n элементов и возвращает указатель на неё
-    static T* Allocate(size_t n) {
-        return n != 0 ? static_cast<T*>(operator new(n * sizeof(T))) : nullptr;
-    }
-
-    // Освобождает сырую память, выделенную ранее по адресу buf при помощи Allocate
-    static void Deallocate(T* buf) noexcept {
-        operator delete(buf);
-    }
-
-        // Вызывает деструкторы n объектов массива по адресу buf
-    static void DestroyN(T* buf, size_t n) noexcept {
-        for (size_t i = 0; i != n; ++i) {
-            Destroy(buf + i);
-        }
-    }
-
-    // Создаёт копию объекта elem в сырой памяти по адресу buf
-    static void CopyConstruct(T* buf, const T& elem) {
-        new (buf) T(elem);
-    }
-
-    // Вызывает деструктор объекта по адресу buf
-    static void Destroy(T* buf) noexcept {
-        buf->~T();
-    }
 };

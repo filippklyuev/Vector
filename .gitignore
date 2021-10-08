@@ -3,3 +3,4 @@ vector_main.cpp
 *.exe
 mains/exceptions_test.cpp
 memory_class_main.cpp
+getridof_try_catch.cpp
