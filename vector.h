@@ -5,10 +5,28 @@
 #include <memory>
 #include <utility>
 
+#include <iostream>
+
 template <typename T>
 class RawMemory {
 public:
     RawMemory() = default;
+    RawMemory(const RawMemory&) = delete;
+    RawMemory& operator=(const RawMemory& rhs) = delete;
+
+    RawMemory(RawMemory&& other) noexcept { 
+        buffer_ = other.buffer_;
+        capacity_ = other.capacity_;
+        other.buffer_ = nullptr;
+        other.capacity_ = 0;
+    }
+    RawMemory& operator=(RawMemory&& rhs) noexcept {
+        Deallocate(buffer_);
+        buffer_ = rhs.buffer_;
+        capacity_ = rhs.capacity_;
+        rhs.buffer_ = nullptr;
+        rhs.capacity_ = 0;
+    }
 
     explicit RawMemory(size_t capacity)
         : buffer_(Allocate(capacity))
@@ -84,6 +102,45 @@ public:
         , size_(other.size_) 
     {
         std::uninitialized_copy_n(other.data_.GetAddress(), size_, data_.GetAddress());
+    }
+
+    Vector(Vector&& other) noexcept
+        : data_(std::move(other.data_))
+        , size_ (other.size_)
+    {
+        other.size_ = 0;
+    }
+
+
+    Vector& operator=(const Vector& rhs) {
+        if (this != &rhs) {
+            if (rhs.size_ > data_.Capacity()) {
+                Vector rhs_copy(rhs);
+                Swap(rhs_copy);
+            } else {
+                std::uninitialized_copy_n(rhs.data_.GetAddress(), rhs.size_, data_.GetAddress());
+                std::cout << "Size_ = " << size_ << "; Rhs_size_ = " << rhs.size_ << "; Capacity = " << data_.Capacity() << '\n';
+                std::destroy_n(data_ + rhs.size_, size_ - rhs.size_);
+                // std::cout << "data_cap = " << data_.Capacity() << '\n';
+                size_ = rhs.size_;
+                /* Скопировать элементы из rhs, создав при необходимости новые
+                   или удалив существующие */
+            }
+        }
+        return *this;
+    }
+
+    Vector& operator=(Vector&& rhs) noexcept {
+        std::destroy_n(data_.GetAddress(), size_);
+        data_ = std::move(rhs.data_);
+        size_ = rhs.size_;
+        rhs.size_ = 0;
+
+    }
+
+    void Swap(Vector& other) noexcept {
+        data_.Swap(other.data_);
+        std::swap(size_, other.size_);
     }
 
     ~Vector() {

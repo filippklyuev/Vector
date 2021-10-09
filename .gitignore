@@ -4,3 +4,5 @@ vector_main.cpp
 mains/exceptions_test.cpp
 memory_class_main.cpp
 getridof_try_catch.cpp
+.clang-tidy
+move_constructors.cpp
