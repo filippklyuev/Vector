@@ -26,6 +26,7 @@ public:
         capacity_ = rhs.capacity_;
         rhs.buffer_ = nullptr;
         rhs.capacity_ = 0;
+        return *this;
     }
 
     explicit RawMemory(size_t capacity)
@@ -118,23 +119,27 @@ public:
                 Vector rhs_copy(rhs);
                 Swap(rhs_copy);
             } else {
-                std::uninitialized_copy_n(rhs.data_.GetAddress(), rhs.size_, data_.GetAddress());
-                std::cout << "Size_ = " << size_ << "; Rhs_size_ = " << rhs.size_ << "; Capacity = " << data_.Capacity() << '\n';
-                std::destroy_n(data_ + rhs.size_, size_ - rhs.size_);
-                // std::cout << "data_cap = " << data_.Capacity() << '\n';
+                
+                for (size_t i = 0; i < rhs.size_ && i < size_; i++){
+                    data_[i] = rhs.data_[i];
+                }
+                if (size_ < rhs.size_){
+                    std::uninitialized_copy_n(rhs.data_ + size_, rhs.size_ - size_, data_ + size_);
+                }
+                if ((static_cast<int64_t>(size_) - static_cast<int64_t>(rhs.size_)) > 0){
+                    std::destroy_n(data_ + rhs.size_, size_ - rhs.size_);
+                }
                 size_ = rhs.size_;
-                /* Скопировать элементы из rhs, создав при необходимости новые
-                   или удалив существующие */
             }
         }
         return *this;
     }
 
     Vector& operator=(Vector&& rhs) noexcept {
-        std::destroy_n(data_.GetAddress(), size_);
         data_ = std::move(rhs.data_);
         size_ = rhs.size_;
         rhs.size_ = 0;
+        return *this;
 
     }
 
