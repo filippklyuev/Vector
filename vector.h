@@ -174,16 +174,62 @@ public:
             return;
         }
         RawMemory<T> new_data(new_capacity);
-        if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>){
-            std::uninitialized_move_n(data_.GetAddress(), size_, new_data.GetAddress());
-        } else {
-            std::uninitialized_copy_n(data_.GetAddress(), size_, new_data.GetAddress());
-        }
+        CopyOrMoveData(data_.GetAddress(), new_data.GetAddress(), size_);
         std::destroy_n(data_.GetAddress(), size_);
         data_.Swap(new_data);
+    }
+
+    void Resize(size_t new_size){
+        if (new_size < size_){
+            std::destroy_n(data_ + new_size,  size_ - new_size);
+        } else {
+            Reserve(new_size);
+            std::uninitialized_value_construct_n(data_ + size_, new_size - size_);
+        }
+        size_ = new_size;
+    }
+
+    void PushBack(const T& value){
+        // T copy = value;
+        if (size_ == Capacity()) {
+            RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
+            new (new_data + size_) T(value);
+            CopyOrMoveData(data_.GetAddress(), new_data.GetAddress(), size_);
+            std::destroy_n(data_.GetAddress(), size_);
+            data_.Swap(new_data);
+            // Reserve(size_ == 0 ? 1 : size_ * 2);
+        } else {
+            new (data_ + size_) T(value);
+        }
+        ++size_;
+    }
+
+    void PushBack(T&& value){
+        if (size_ == Capacity()) {
+            RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
+            new (new_data + size_) T(std::move(value));
+            CopyOrMoveData(data_.GetAddress(), new_data.GetAddress(), size_);
+            std::destroy_n(data_.GetAddress(), size_);
+            data_.Swap(new_data);
+        } else {
+            new (data_ + size_) T(std::move(value));
+        }
+        ++ size_;
+    }
+    void PopBack()  noexcept {
+        std::destroy_at(data_ + size_);
+        size_--;
     }
 
 private:
     RawMemory<T> data_;
     size_t size_ = 0;
+
+    void CopyOrMoveData(T* from, T* to, size_t nbr){
+        if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>){
+            std::uninitialized_move_n(from, nbr, to);
+        } else {
+            std::uninitialized_copy_n(from, nbr, to);
+        }    
+    }
 };

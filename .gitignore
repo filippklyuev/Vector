@@ -6,3 +6,4 @@ memory_class_main.cpp
 getridof_try_catch.cpp
 .clang-tidy
 move_constructors.cpp
+main_push_back.cpp
