@@ -88,6 +88,15 @@ public:
         }
     }
 
+    template<typename ...Ts>
+    void Emplace(Ts&&... vs){
+        if (HasValue()){
+            Reset();
+        }
+        new (data_) T(Construct<decltype(vs)>(vs)...);
+        is_initialized_ = true;
+    } 
+
     bool HasValue() const{
         return is_initialized_;
     }
@@ -132,4 +141,9 @@ private:
     // alignas нужен для правильного выравнивания блока памяти
     alignas(T) char data_[sizeof(T)];
     bool is_initialized_ = false;
+
+    template <typename Type, typename S>
+    Type Construct(S&& arg) {
+        return Type(std::forward<S>(arg));
+    }
 };
