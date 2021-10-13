@@ -7,6 +7,11 @@
 
 #include <iostream>
 
+template <typename Type, typename S>
+Type Construct(S&& arg) {
+    return Type(std::forward<S>(arg));
+}
+
 template <typename T>
 class RawMemory {
 public:
@@ -190,34 +195,29 @@ public:
     }
 
     void PushBack(const T& value){
-        // T copy = value;
-        if (size_ == Capacity()) {
-            RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
-            new (new_data + size_) T(value);
-            CopyOrMoveData(data_.GetAddress(), new_data.GetAddress(), size_);
-            std::destroy_n(data_.GetAddress(), size_);
-            data_.Swap(new_data);
-            // Reserve(size_ == 0 ? 1 : size_ * 2);
-        } else {
-            new (data_ + size_) T(value);
-        }
-        ++size_;
+        EmplaceBack(value);
     }
 
     void PushBack(T&& value){
-        if (size_ == Capacity()) {
-            RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
-            new (new_data + size_) T(std::move(value));
-            CopyOrMoveData(data_.GetAddress(), new_data.GetAddress(), size_);
-            std::destroy_n(data_.GetAddress(), size_);
-            data_.Swap(new_data);
-        } else {
-            new (data_ + size_) T(std::move(value));
-        }
-        ++ size_;
+        EmplaceBack(std::move(value));
     }
+
+    template <typename... Args>
+    T& EmplaceBack(Args&&... args){
+        if (size_ == Capacity()){
+            RawMemory<T> new_data(size_ == 0 ? 1 : size_ * 2);
+            new (new_data + size_) T(Construct<decltype(args)>(args)...);
+            CopyOrMoveData(data_.GetAddress(), new_data.GetAddress(), size_);
+            DestroyOldAndSwap(data_, size_, new_data);
+        } else {
+            new (data_ + size_) T(Construct<decltype(args)>(args)...);
+        }
+        ++size_;
+        return data_[size_ - 1];
+    }
+
     void PopBack()  noexcept {
-        std::destroy_at(data_ + size_);
+        std::destroy_at(data_ + size_ - 1);
         size_--;
     }
 
@@ -231,5 +231,10 @@ private:
         } else {
             std::uninitialized_copy_n(from, nbr, to);
         }    
+    }
+
+    void DestroyOldAndSwap(RawMemory<T>& old_data, size_t size, RawMemory<T>& new_data) noexcept {
+        std::destroy_n(old_data.GetAddress(), size);
+        old_data.Swap(new_data);
     }
 };

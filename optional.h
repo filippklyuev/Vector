@@ -11,6 +11,11 @@ public:
     }
 };
 
+template <typename Type, typename S>
+Type Construct(S&& arg) {
+    return Type(std::forward<S>(arg));
+}
+
 template <typename T>
 class Optional {
 public:
@@ -142,8 +147,4 @@ private:
     alignas(T) char data_[sizeof(T)];
     bool is_initialized_ = false;
 
-    template <typename Type, typename S>
-    Type Construct(S&& arg) {
-        return Type(std::forward<S>(arg));
-    }
 };
