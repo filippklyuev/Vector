@@ -9,3 +9,4 @@ move_constructors.cpp
 main_push_back.cpp
 variadic_template_optional.cpp
 vector_emplace_back.cpp
+EmplaceMain.cpp
