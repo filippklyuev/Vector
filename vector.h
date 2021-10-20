@@ -278,7 +278,7 @@ public:
         return begin() + distance;
     }
 
-    iterator Erase(const_iterator pos) /*noexcept(std::is_nothrow_move_assignable_v<T>)*/{
+    iterator Erase(const_iterator pos){
         size_t distance = pos - data_.GetAddress();
         if (distance < size_ - 1){
             std::move(begin() + (distance  + 1), begin() + size_, begin() + distance);
