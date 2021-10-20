@@ -244,7 +244,7 @@ public:
     template <typename... Args>
     iterator Emplace(const_iterator pos, Args&&... args){
         if (pos < cbegin() || pos > cend()){
-            throw ;
+            return end() ;
         }
         size_t distance = pos - begin();
         if (size_ == Capacity()){
@@ -254,22 +254,24 @@ public:
                 uninitCopyOrMoveN(begin(), new_data.GetAddress(), distance);     
             } catch(...){
                 std::destroy_at(new_data + distance);
+                throw;
             }
             try {
                 uninitCopyOrMoveN(begin() + distance, new_data + distance + 1, size_ - distance);   
             } catch (...){
                 std::destroy_n(new_data.GetAddress(), distance + 1);
+                throw;
             }          
             std::destroy_n(data_.GetAddress(), size_);
             data_.Swap(new_data);   
         } else {
             if (distance != size_) {
                 T temp_value(std::forward<Args>(args)...);
-                uninitCopyOrMoveN(end() - 1, end(), 1);
+                std::uninitialized_move_n(end() - 1, 1, end());
                 std::move_backward(begin() + distance, end() - 1, end());
                 data_[distance] = (std::move(temp_value));
             } else {
-                new (data_ + distance) T(std::forward<Args>(args)...);
+                new (data_ + distance) T(std::forward<Args>(args)...);  
             }
         }
         ++size_;
